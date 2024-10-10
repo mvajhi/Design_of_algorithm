@@ -2,8 +2,9 @@ inp = dict()
 
 def parse_input():
     n, k, A, B = map(int, input().split())
-    tmp = map(int, input().split())
-    queue = [0 for i in range(2**n)]
+    tmp = list(map(int, input().split()))
+    # queue = [0] * 2**n
+    queue = {i-1:0 for i in tmp}
     for i in tmp:
         queue[i-1] += 1  
     
@@ -14,7 +15,7 @@ def solve(first, last):
     cost = -1
     count = -1
     if first == last:
-        if inp["queue"][first] == 0:
+        if not first in inp["queue"]:
             cost = inp["A"]
             count = 0
         else:
