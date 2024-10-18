@@ -1,26 +1,28 @@
 inp = dict()
 
 def parse_input():
+    # use GPT https://chatgpt.com/share/67077cd3-99d4-8001-806a-81fb07a09235
+    # کدش رو به زبان cpp بزن
+    # (ارسال صورت سوال)
     n, k, A, B = map(int, input().split())
-    tmp = list(map(int, input().split()))
-    # queue = [0] * 2**n
-    queue = {i-1:0 for i in tmp}
-    for i in tmp:
-        queue[i-1] += 1  
+    queue = sorted(map(int, input().split()))
+    queue_index = 0
     
     global inp    
-    inp = {"n": n,"k": k,"A": A,"B": B,"queue": queue}
+    inp = {"n": n,"k": k,"A": A,"B": B,"queue": queue, "queue_index": queue_index, "len": len(queue)}
 
 def solve(first, last):
     cost = -1
-    count = -1
+    count = 0
     if first == last:
-        if not first in inp["queue"]:
+        while inp["queue_index"] <= inp["len"] - 1 and inp["queue"][inp["queue_index"]] == first + 1:
+            inp["queue_index"] += 1
+            count += 1
+
+        if count == 0:
             cost = inp["A"]
-            count = 0
         else:
-            cost = inp["B"] * inp["queue"][first]
-            count = inp["queue"][first]
+            cost = inp["B"] * count
             
         return count, cost
     
