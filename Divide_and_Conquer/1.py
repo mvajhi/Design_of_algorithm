@@ -1,57 +1,44 @@
-def main():
-    len_inp, inp = get_input()
-    print((inp))
-    bst = create_bst(inp, len_inp)
-    bst.show()
-    result = Dvide_and_Conquer(bst)
-    print(result)
+# https://poe.com/s/M8VPIUlnJt0M5zSiGke6
+# صورت سوال
 
-def get_input():
-    return int(input()), list(map(int, input().split()))
+import sys
+import math
 
-def create_bst(inp, len_inp):
-    bst = BST()
-    for i in inp:
-        bst.insert(i)
-    return bst
+MOD = 10**9 + 7
 
-class Node:
-    def __init__(self, key):
-        self.key = key
-        self.left = None
-        self.right = None
+# پیش‌محاسبه ترکیب‌ها با استفاده از اصل پاسکال
+def precompute_combinations(n, mod):
+    comb = [[0] * (n + 1) for _ in range(n + 1)]
+    for i in range(n + 1):
+        comb[i][0] = comb[i][i] = 1
+        for j in range(1, i):
+            comb[i][j] = (comb[i-1][j-1] + comb[i-1][j]) % mod
+    return comb
 
-class BST:
-    def __init__(self):
-        self.root = None
+# بازگشتی برای محاسبه تعداد حالات
+def count_ways(arr, comb, mod):
+    if len(arr) <= 1:
+        return 1
+    root = arr[0]
+    left = [x for x in arr if x < root]
+    right = [x for x in arr if x > root]
+    
+    left_ways = count_ways(left, comb, mod)
+    right_ways = count_ways(right, comb, mod)
+    
+    # تعداد راه‌های ترکیب کردن زیرآرایه چپ و راست
+    total_ways = comb[len(arr) - 1][len(left)]
+    
+    return (total_ways * left_ways % mod) * right_ways % mod
 
-    def insert(self, key):
-        if self.root is None:
-            self.root = Node(key)
-        else:
-            self._insert(self.root, key)
-
-    def _insert(self, node, key):
-        if key < node.key:
-            if node.left is None:
-                node.left = Node(key)
-            else:
-                self._insert(node.left, key)
-        else:
-            if node.right is None:
-                node.right = Node(key)
-            else:
-                self._insert(node.right, key)
-
-    def show(self):
-        if self.root is not None:
-            self._show(self.root)
-            
-    def _show(self, node):
-        if node is not None:
-            self._show(node.left)
-            print(str(node.key) + ' ')
-            self._show(node.right)
-
-if __name__ == "__main__":
-    main()
+def solve():
+    n = int(input())
+    arr = list(map(int, input().split()))
+    
+    comb = precompute_combinations(n, MOD)
+    
+    result = count_ways(arr, comb, MOD)
+    
+    print(result - 1)
+    
+solve()
