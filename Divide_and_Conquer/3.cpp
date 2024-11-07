@@ -1,55 +1,52 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
-
 using namespace std;
 
-// تابعی برای محاسبه انرژی کمینه مورد نیاز
-long long minEnergy(int start, int end, const vector<int>& people, int A, int B) {
-    // محاسبه تعداد افراد ناراضی در این بازه
-    auto left = lower_bound(people.begin(), people.end(), start);
-    auto right = upper_bound(people.begin(), people.end(), end);
-    int count = right - left;
-    
-    // محاسبه طول این بازه
-    int length = end - start + 1;
-    
-    // اگر هیچ فرد ناراضی وجود نداشت
+// https://chatgpt.com/share/671565c7-bd24-8001-8ea5-605b2ecba5f8
+// کد را رفع اشکال و سریع کن
+
+int n, k, A, B;
+vector<int> queue;
+
+pair<int, int> find_bounds(int left, int right, int target_left, int target_right) {
+    int lower = lower_bound(queue.begin() + left, queue.begin() + right, target_left) - queue.begin();
+    int upper = upper_bound(queue.begin() + left, queue.begin() + right, target_right) - queue.begin();
+    return {lower, upper};
+}
+
+long long solve(int target_left, int target_right) {
+    auto bounds = find_bounds(0, k, target_left, target_right);
+    int first_occurrence = bounds.first, last_occurrence = bounds.second;
+    int count = last_occurrence - first_occurrence;
+
     if (count == 0) {
         return A;
     }
 
-    // اگر تنها یک خانه باشد
-    if (length == 1) {
-        return B * count;
+    long long length = target_right - target_left + 1;
+    long long cost = 1LL * B * count * length;
+
+    if (target_left == target_right) {
+        return cost;
     }
 
-    // محاسبه انرژی برای تقسیم نکردن
-    long long energyNoSplit = B * count * length;
-    
-    // محاسبه انرژی برای تقسیم کردن به دو نیمه
-    int mid = (start + end) / 2;
-    long long energySplit = minEnergy(start, mid, people, A, B) +
-                            minEnergy(mid + 1, end, people, A, B);
+    int mid = (target_left + target_right) / 2;
 
-    // بازگرداندن کمترین انرژی بین تقسیم و تقسیم نکردن
-    return min(energyNoSplit, energySplit);
+    long long cost_left = solve(target_left, mid);
+    long long cost_right = solve(mid + 1, target_right);
+
+    return min(cost, cost_left + cost_right);
 }
 
 int main() {
-    int n, k, A, B;
     cin >> n >> k >> A >> B;
-    
-    vector<int> people(k);
-    for (int i = 0; i < k; i++) {
-        cin >> people[i];
+    queue.resize(k);
+    for (int i = 0; i < k; ++i) {
+        cin >> queue[i];
     }
-    
-    // مرتب‌سازی برای استفاده از binary search
-    sort(people.begin(), people.end());
-    
-    // محاسبه و چاپ کمترین انرژی مورد نیاز
-    cout << minEnergy(1, 1 << n, people, A, B) << endl;
-    
+    sort(queue.begin(), queue.end());
+
+    cout << solve(1, (1 << n)) << endl;
     return 0;
 }
