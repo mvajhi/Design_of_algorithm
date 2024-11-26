@@ -1,30 +1,43 @@
-# https://poe.com/s/CTs44IJxDyDqizUpuPwv
-# صورت سوال
-import sys
-sys.setrecursionlimit(1 << 25)
+def check(mid, ages, k, n):
+    # ages = _ages[:]
+    pre = ages[0]
+    count = 0
+    for i in range(n - 2):
+        new_count = (pre + ages[i + 1]) // mid
+        count += new_count
+        pre = ages[i+1] - max(0, new_count * mid - ages[i])
 
-n = int(sys.stdin.readline())
-h = list(map(int, sys.stdin.readline().split()))
-tree = [[] for _ in range(n)]
-for _ in range(n - 1):
-    u, v = map(int, sys.stdin.readline().split())
-    u -= 1
-    v -= 1
-    tree[u].append(v)
-    tree[v].append(u)
+    return count >= k
 
-total_planks = [0]
+def solve(data):
+    n, k, ages = data
+    
+    if n == 1:
+        print((ages[0] // k )* k)
+        return
+    if n == 0:
+        print(0)
+        return
+    
+    max_count = ages[0]
+    for i in range(1, n-1):
+        max_count = max(max_count, ages[i] + ages[i+1])
+    min_count = max_count // k
+    
+    ans = 0
+    while min_count <= max_count:
+        mid = (min_count + max_count) // 2
+        if check(mid, ages, k, n):
+            min_count = mid + 1
+            ans = mid
+        else:
+            max_count = mid - 1
+            
+    print(ans * k)
+    
 
-def dfs(u, parent):
-    max_h = h[u]
-    for v in tree[u]:
-        if v != parent:
-            child_h = dfs(v, u)
-            max_h = max(max_h, child_h)
-    if parent != -1:
-        total_planks[0] += max_h - h[parent]
-    return max_h
-
-dfs(0, -1)
-total_planks[0] += h[0]
-print(total_planks[0])
+t = int(input())
+for _ in range(t):
+    n, k = map(int, input().split())
+    ages = list(map(int, input().split()))
+    solve((n, k, ages))
