@@ -1,145 +1,139 @@
+// https://poe.com/s/gHEbsC9nTR5mpiMsnCSq
+// تبدیل کن به CPP
+// کد پایتون رو چت جی پیتی زدم سایتش پایین اومده کار نمی کنه به دلیل کمبود وقت ایمیل می کنم براتون
+
 #include <iostream>
 #include <vector>
 #include <algorithm>
-using namespace std;
+#include <tuple>
+#include <climits>  // Include this for INT_MAX
 
-const int MAXN = 500005;
-
-int n, m, q;
-vector<pair<int, pair<int, int>>> edges;
-
-int parent[MAXN], depth[MAXN];
-int up[MAXN][20], maxEdge[MAXN][20];
-
-vector<pair<int, int>> adj[MAXN];
-
-void make_set() {
-    for (int i = 1; i <= n; i++)
-        parent[i] = i;
-}
-
-int find_set(int v) {
-    if (v == parent[v])
-        return v;
-    return parent[v] = find_set(parent[v]);
-}
-
-bool union_sets(int a, int b) {
-    a = find_set(a);
-    b = find_set(b);
-    if (a != b) {
-        parent[b] = a;
-        return true;
+class UnionFind {
+public:
+    UnionFind(int n) {
+        parent.resize(n);
+        rank.resize(n, 0);
+        for (int i = 0; i < n; ++i) {
+            parent[i] = i;
+        }
     }
-    return false;
-}
 
-void dfs(int v, int p) {
-    for (auto edge : adj[v]) {
-        int u = edge.first;
-        int w = edge.second;
-        if (u != p) {
-            depth[u] = depth[v] + 1;
-            up[u][0] = v;
-            maxEdge[u][0] = w;
-            for (int i = 1; i < 20; i++) {
-                up[u][i] = up[up[u][i - 1]][i - 1];
-                maxEdge[u][i] = max(maxEdge[u][i - 1], maxEdge[up[u][i - 1]][i - 1]);
+    int find(int x) {
+        if (parent[x] != x) {
+            parent[x] = find(parent[x]);
+        }
+        return parent[x];
+    }
+
+    void unionSets(int x, int y) {
+        int rootX = find(x);
+        int rootY = find(y);
+        if (rootX != rootY) {
+            if (rank[rootX] > rank[rootY]) {
+                parent[rootY] = rootX;
+            } else if (rank[rootX] < rank[rootY]) {
+                parent[rootX] = rootY;
+            } else {
+                parent[rootY] = rootX;
+                ++rank[rootX];
             }
-            dfs(u, v);
         }
     }
-}
 
-int getMaxEdge(int u, int v) {
-    if (depth[u] < depth[v])
-        swap(u, v);
-    int res = 0;
-    for (int i = 19; i >= 0; i--) {
-        if (depth[u] - (1 << i) >= depth[v]) {
-            res = max(res, maxEdge[u][i]);
-            u = up[u][i];
-        }
-    }
-    if (u == v)
-        return res;
-    for (int i = 19; i >= 0; i--) {
-        if (up[u][i] != up[v][i]) {
-            res = max(res, maxEdge[u][i]);
-            res = max(res, maxEdge[v][i]);
-            u = up[u][i];
-            v = up[v][i];
-        }
-    }
-    res = max(res, maxEdge[u][0]);
-    res = max(res, maxEdge[v][0]);
-    return res;
-}
+private:
+    std::vector<int> parent;
+    std::vector<int> rank;
+};
 
-int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(0);
+std::pair<int, std::vector<std::tuple<int, int, int>>> kruskal(int n, std::vector<std::tuple<int, int, int>> edges, std::vector<std::tuple<int, int, int>> forcedEdges = {}) {
+    UnionFind uf(n);
+    int mstWeight = 0;
+    int mstEdges = 0;
+    std::vector<std::tuple<int, int, int>> selectedEdges;
 
-    cin >> n >> m;
-    edges.resize(m);
-    for (int i = 0; i < m; i++) {
+    // Add forced edges first
+    for (const auto& edge : forcedEdges) {
         int u, v, w;
-        cin >> u >> v >> w;
-        edges[i] = {w, {u, v}};
-    }
-
-    // ساخت MST
-    sort(edges.begin(), edges.end());
-    make_set();
-    vector<pair<int, pair<int, int>>> mst_edges;
-    for (auto edge : edges) {
-        int w = edge.first;
-        int u = edge.second.first;
-        int v = edge.second.second;
-        if (union_sets(u, v)) {
-            mst_edges.push_back(edge);
-            adj[u].push_back({v, w});
-            adj[v].push_back({u, w});
+        std::tie(u, v, w) = edge;
+        if (uf.find(u) != uf.find(v)) {
+            uf.unionSets(u, v);
+            mstWeight += w;
+            mstEdges++;
+            selectedEdges.push_back(edge);
+        } else {
+            return {INT_MAX, {}};  // Use INT_MAX from climits
         }
     }
 
-    // آماده‌سازی برای LCA
-    depth[1] = 0;
-    up[1][0] = 1;
-    maxEdge[1][0] = 0;
-    dfs(1, -1);
+    // Sort edges by weight
+    std::sort(edges.begin(), edges.end(), [](const auto& a, const auto& b) {
+        return std::get<2>(a) < std::get<2>(b);
+    });
 
-    cin >> q;
-    while (q--) {
-        int k;
-        cin >> k;
-        vector<int> req_edges(k);
-        vector<pair<int, pair<int, int>>> extra_edges;
-        for (int i = 0; i < k; i++) {
-            cin >> req_edges[i];
-            req_edges[i]--; // صفر مبنا
-            int u = edges[req_edges[i]].second.first;
-            int v = edges[req_edges[i]].second.second;
-            int w = edges[req_edges[i]].first;
-            extra_edges.push_back({w, {u, v}});
-        }
-
-        bool ok = true;
-        for (auto edge : extra_edges) {
-            int u = edge.second.first;
-            int v = edge.second.second;
-            int w = edge.first;
-            int max_w = getMaxEdge(u, v);
-            if (max_w > w) {
-                ok = false;
+    // Add remaining edges
+    for (const auto& edge : edges) {
+        int u, v, w;
+        std::tie(u, v, w) = edge;
+        if (uf.find(u) != uf.find(v)) {
+            uf.unionSets(u, v);
+            mstWeight += w;
+            mstEdges++;
+            selectedEdges.push_back(edge);
+            if (mstEdges == n - 1) {
                 break;
             }
         }
+    }
 
-        if (ok)
-            cout << "YES\n";
-        else
-            cout << "NO\n";
+    if (mstEdges == n - 1) {
+        return {mstWeight, selectedEdges};
+    } else {
+        return {INT_MAX, {}};  // Use INT_MAX from climits
+    }
+}
+
+int main() {
+    int n, m;
+    std::cin >> n >> m;
+    std::vector<std::tuple<int, int, int>> edges(m);
+    for (int i = 0; i < m; ++i) {
+        int u, v, w;
+        std::cin >> u >> v >> w;
+        edges[i] = {u - 1, v - 1, w};  // Convert to 0-based index
+    }
+
+
+    int q;
+    std::cin >> q;
+    std::vector<std::vector<std::tuple<int, int, int>>> queries(q);
+    for (int i = 0; i < q; ++i) {
+        int k;
+        std::cin >> k;
+        queries[i].resize(k);
+        for (int j = 0; j < k; ++j) {
+            int idx;
+            std::cin >> idx;
+            queries[i][j] = edges[idx - 1];  // Convert to 0-based index
+        }
+    }
+
+    // Sort edges by weight
+    std::sort(edges.begin(), edges.end(), [](const auto& a, const auto& b) {
+        return std::get<2>(a) < std::get<2>(b);
+    });
+    // Compute the MST weight of the original graph
+    auto baseMST = kruskal(n, edges);
+
+    // Process each query
+    std::vector<std::string> results;
+    for (const auto& query : queries) {
+        auto mstWeight = kruskal(n, edges, query);
+        results.push_back(mstWeight.first == baseMST.first ? "YES" : "NO");
+    }
+
+    // Output results
+    for (const auto& result : results) {
+        std::cout << result << std::endl;
     }
 
     return 0;

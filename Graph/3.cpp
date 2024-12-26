@@ -1,121 +1,206 @@
-// https://chatgpt.com/share/67619d10-a894-8001-ac8a-2bbee1f9fd1a
-// صورت سوال
-// کدت درست نیست روی تست
-// فقط یال های تویmst رو بررسی می کنی
-// جواب های دوبخش قبلی رو باهم ادغام کن
-// تبدیل کن به cpp
-#include <bits/stdc++.h>
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <numeric>
+#include <tuple>
+#include <unordered_map>
+
 using namespace std;
 
-struct Edge {
-    int u, v, w, idx;
-    bool operator<(const Edge &other) const { return w < other.w; }
-};
-
 class DSU {
-    vector<int> parent, rank;
 public:
     DSU(int n) {
         parent.resize(n);
-        rank.assign(n, 0);
-        iota(parent.begin(), parent.end(), 0); // مقداردهی اولیه parent[i] = i
+        iota(parent.begin(), parent.end(), 0);
+        rank.resize(n, 0);
     }
 
     int find(int x) {
-        if (parent[x] != x) parent[x] = find(parent[x]);
+        if (parent[x] != x) {
+            parent[x] = find(parent[x]);
+        }
         return parent[x];
     }
 
-    bool unionSets(int x, int y) {
-        int xr = find(x), yr = find(y);
-        if (xr == yr) return false;
-        if (rank[xr] < rank[yr])
-            parent[xr] = yr;
-        else if (rank[xr] > rank[yr])
+    void unite(int x, int y) {
+        int xr = find(x);
+        int yr = find(y);
+        if (xr != yr) {
+            if (rank[xr] < rank[yr]) {
+                swap(xr, yr);
+            }
             parent[yr] = xr;
-        else {
-            parent[yr] = xr;
-            rank[xr]++;
+            if (rank[xr] == rank[yr]) {
+                rank[xr]++;
+            }
         }
-        return true;
     }
 
-    void reset(int x) { parent[x] = x; }
+private:
+    vector<int> parent;
+    vector<int> rank;
 };
 
-int n, m;
-vector<Edge> edges;
+vector<tuple<int, int, int>> kruskal(int n, vector<tuple<int, int, int>>& edges) {
+    DSU dsu(n);
+    vector<tuple<int, int, int>> mst;
+    for (auto& [w, u, v] : edges) {
+        if (dsu.find(u) != dsu.find(v)) {
+            dsu.unite(u, v);
+            mst.emplace_back(u, v, w);
+        }
+    }
+    return mst;
+}
 
-vector<string> solve() {
+void dfs(int u, int parent, int depth, const vector<vector<tuple<int, int, int>>>& adj,
+         vector<vector<int>>& par, vector<vector<int>>& mx, vector<vector<int>>& mx_idx, vector<int>& dep) {
+    dep[u] = depth;
+    par[u][0] = parent;
+    for (const auto& [v, w, idx] : adj[u]) {
+        if (v != parent) {
+            mx[v][0] = w;
+            mx_idx[v][0] = idx;
+            dfs(v, u, depth + 1, adj, par, mx, mx_idx, dep);
+        }
+    }
+}
+
+tuple<vector<vector<int>>, vector<vector<int>>, vector<vector<int>>, vector<int>>
+prepare_lca(int n, const vector<vector<tuple<int, int, int>>>& adj) {
+    const int LOG = 17;
+    vector<vector<int>> par(n, vector<int>(LOG, -1));
+    vector<vector<int>> mx(n, vector<int>(LOG, 0));
+    vector<vector<int>> mx_idx(n, vector<int>(LOG, -1));
+    vector<int> dep(n, 0);
+
+    dfs(0, -1, 0, adj, par, mx, mx_idx, dep);
+
+    for (int j = 1; j < LOG; ++j) {
+        for (int i = 0; i < n; ++i) {
+            if (par[i][j - 1] != -1) {
+                par[i][j] = par[par[i][j - 1]][j - 1];
+                mx[i][j] = max(mx[i][j - 1], mx[par[i][j - 1]][j - 1]);
+                mx_idx[i][j] = mx[i][j - 1] > mx[par[i][j - 1]][j - 1] ? mx_idx[i][j - 1] : mx_idx[par[i][j - 1]][j - 1];
+            }
+        }
+    }
+
+    return {par, mx, mx_idx, dep};
+}
+
+pair<int, vector<int>> lca(int u, int v, const vector<vector<int>>& par, const vector<vector<int>>& mx, const vector<vector<int>>& mx_idx, const vector<int>& dep) {
+    int LOG = par[0].size();
+    if (dep[u] < dep[v]) swap(u, v);
+
+    int max_weight = 0;
+    vector<int> max_edge_indices;
+
+    for (int i = LOG - 1; i >= 0; --i) {
+        if (dep[u] - (1 << i) >= dep[v]) {
+            if (mx[u][i] > max_weight) {
+                max_weight = mx[u][i];
+                max_edge_indices = {mx_idx[u][i]};
+            } else if (mx[u][i] == max_weight) {
+                max_edge_indices.push_back(mx_idx[u][i]);
+            }
+            u = par[u][i];
+        }
+    }
+
+    if (u == v) return {max_weight, max_edge_indices};
+
+    for (int i = LOG - 1; i >= 0; --i) {
+        if (par[u][i] != par[v][i]) {
+            if (mx[u][i] > max_weight) {
+                max_weight = mx[u][i];
+                max_edge_indices = {mx_idx[u][i]};
+            } else if (mx[u][i] == max_weight) {
+                max_edge_indices.push_back(mx_idx[u][i]);
+            }
+
+            if (mx[v][i] > max_weight) {
+                max_weight = mx[v][i];
+                max_edge_indices = {mx_idx[v][i]};
+            } else if (mx[v][i] == max_weight) {
+                max_edge_indices.push_back(mx_idx[v][i]);
+            }
+
+            u = par[u][i];
+            v = par[v][i];
+        }
+    }
+
+    if (mx[u][0] > max_weight) {
+        max_weight = mx[u][0];
+        max_edge_indices = {mx_idx[u][0]};
+    } else if (mx[u][0] == max_weight) {
+        max_edge_indices.push_back(mx_idx[u][0]);
+    }
+
+    if (mx[v][0] > max_weight) {
+        max_weight = mx[v][0];
+        max_edge_indices = {mx_idx[v][0]};
+    } else if (mx[v][0] == max_weight) {
+        max_edge_indices.push_back(mx_idx[v][0]);
+    }
+
+    return {max_weight, max_edge_indices};
+}
+
+vector<string> process_graph(int n, vector<tuple<int, int, int>>& edges) {
+    for (auto& [w, u, v] : edges) {
+        u--; v--;
+    }
     sort(edges.begin(), edges.end());
 
-    DSU dsu(n);
-    vector<Edge> mstEdges;
-    vector<bool> isInMST(m, false);
-    int mstWeight = 0;
+    vector<string> status(edges.size(), "none");
 
-    // مرحله 1: ساخت MST و انتخاب یال‌ها
-    for (auto &e : edges) {
-        if (dsu.unionSets(e.u, e.v)) {
-            mstEdges.push_back(e);
-            isInMST[e.idx] = true;
-            mstWeight += e.w;
-        }
+    auto mst_edges = kruskal(n, edges);
+    unordered_map<int, unordered_map<int, int>> mst_set;
+
+    for (const auto& [u, v, w] : mst_edges) {
+        status.push_back("any");
+        mst_set[min(u, v)][max(u, v)] = w;
     }
 
-    vector<string> answers(m, "none");
+    vector<vector<tuple<int, int, int>>> adj(n);
+    for (const auto& [u, v, w] : mst_edges) {
+        adj[u].emplace_back(v, w, status.size()-1);
+        adj[v].emplace_back(u, w, status.size()-1);
+    }
 
-    // مرحله 2: بررسی یال‌ها برای "at least one"
-    for (auto &e : edges) {
-        if (isInMST[e.idx]) {
-            answers[e.idx] = "at least one";
-        } else {
-            // یال غیر از MST، بررسی می‌کنیم که آیا وزن آن برابر وزن MST است؟
-            DSU tempDSU(n);
-            int tempWeight = 0;
-            for (auto &f : edges) {
-                if (f.idx != e.idx && tempDSU.unionSets(f.u, f.v)) {
-                    tempWeight += f.w;
+    auto [par, mx, mx_idx, dep] = prepare_lca(n, adj);
+
+    for (const auto& [w, u, v] : edges) {
+        if (status[status.size()-1] == "none") {
+            auto [max_weight, max_edge_indices] = lca(u, v, par, mx, mx_idx, dep);
+            if (max_weight == w) {
+                status.push_back("at least one");
+                for (int edge_idx : max_edge_indices) {
+                    status[edge_idx] = "at least one";
                 }
             }
-            if (tempWeight == mstWeight) {
-                answers[e.idx] = "at least one";
-            }
         }
     }
 
-    // مرحله 3: بررسی یال‌های "any" (یال‌های ضروری)
-    for (auto &e : mstEdges) {
-        DSU tempDSU(n);
-        int tempWeight = 0;
-        for (auto &f : edges) {
-            if (f.idx != e.idx && tempDSU.unionSets(f.u, f.v)) {
-                tempWeight += f.w;
-            }
-        }
-        if (tempWeight > mstWeight) {
-            answers[e.idx] = "any";
-        }
-    }
-
-    return answers;
+    return status;
 }
 
 int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(0);
-
+    int n, m;
     cin >> n >> m;
-    edges.resize(m);
-    for (int i = 0; i < m; i++) {
-        cin >> edges[i].u >> edges[i].v >> edges[i].w;
-        edges[i].u--, edges[i].v--;
-        edges[i].idx = i;
+    vector<tuple<int, int, int>> edges;
+
+    for (int i = 0; i < m; ++i) {
+        int u, v, w;
+        cin >> u >> v >> w;
+        edges.emplace_back(w, u, v);
     }
 
-    vector<string> result = solve();
-    for (const auto &res : result) {
-        cout << res << "\n";
+    auto result = process_graph(n, edges);
+    for (const auto& status : result) {
+        cout << status << "\n";
     }
 
     return 0;
