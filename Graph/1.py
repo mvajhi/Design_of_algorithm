@@ -1,38 +1,45 @@
-# https://chatgpt.com/share/675fdb5f-f148-8001-aa8d-249b20b97b45
-'''
-یک گراف داریم
-در ورودی خطر اول ابتدا تعداد راس ها و با یک فاصله تعداد یال ها را ورودی می دهیم و سپس در n خط بعد یال ها را ورودی می دهیم حال باید روی آن dfs یا bfs بزنیم و ببینیم می توان به همه راس ها رسید یا نه
-'''
-def is_connected_dfs(vertices, edges, graph):
-    visited = [False] * (vertices + 1)
+# https://chatgpt.com/share/676c18e7-4634-8001-b192-a397f2e33e7b
+# سرعت کد رو افزایش بده
+# از bfs استفاده کن
+from collections import deque
 
-    def dfs_iterative(start):
-        stack = [start]
-        while stack:
-            node = stack.pop()
-            if not visited[node]:
-                visited[node] = True
-                for neighbor in graph[node]:
-                    if not visited[neighbor]:
-                        stack.append(neighbor)
+def bfs(graph, start, visited):
+    queue = deque([start])
+    while queue:
+        node = queue.popleft()
+        if node not in visited:
+            visited.add(node)
+            queue.extend(graph[node] - visited)
 
-    dfs_iterative(1)  # شروع DFS از راس 1
+def create_graph(num_vertices, nm, absent_edges):
+    if num_vertices > nm ** 3:
+        print(0)
+        exit()
+    graph = {i: set(range(num_vertices)) - {i} for i in range(num_vertices)}
+    
+    for u, v in absent_edges:
+        graph[u].discard(v)
+        graph[v].discard(u)
+    return graph
 
-    # بررسی اینکه آیا همه رئوس بازدید شده‌اند یا خیر
-    return all(visited[1:])
+def get_components_count(num_vertices, nm, absent_edges):
+    graph = create_graph(num_vertices, nm, absent_edges)
+    
+    visited = set()
+    count = 0
+    
+    for node in range(num_vertices):
+        if node not in visited:
+            bfs(graph, node, visited)
+            count += 1
+    
+    return count
 
-# ورودی گراف
+nm = 10
 n, m = map(int, input().split())
-edges = [tuple(map(int, input().split())) for _ in range(m)]
+edges = list()
+for _ in range(m):
+    u, v = map(int, input().split())
+    edges.append((u - 1, v - 1))
 
-# ساخت گراف به صورت لیست مجاورت
-graph = {i: [] for i in range(1, n + 1)}
-for u, v in edges:
-    graph[u].append(v)
-    graph[v].append(u)
-
-# اجرای الگوریتم و چاپ نتیجه
-if is_connected_dfs(n, m, graph):
-    print(n - 1)
-else:
-    print(0)
+print(get_components_count(n, nm, edges) - 1)

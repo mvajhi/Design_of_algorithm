@@ -1,107 +1,97 @@
+# https://chatgpt.com/share/676c1ee8-2ef0-8001-9625-6cd111d3d65c
+'''
+یک نقشه دارم که هر خانه می تواند '.','#','1','2','3' باشد
+خانه های ۱ به همدیگر متصل هستند و خانه های ۲ و ۳ هم به همین شکل.
+خانه های نقطه به معنی مسیر هستند و خانه های # به معنی دیوار.
+خانه های نقطه یک آرایه به طول ۳ دارند که حداقل فاصله به ازای هر خانه عددی را نشان می دهد.
+این مقادیر را پر کن.
+
+خط اول ورودی شامل دو عدد صحیح nn و mm است که به ترتیب تعداد سطرها و ستون‌های نقشه را مشخص می‌کنند. (1≤n,m≤1000)(1≤n,m≤1000)
+
+هر یک از nn خط بعدی شامل mm کاراکتر است که سطرهای نقشه را توصیف می‌کنند.
+
+5 5
+.2...
+#2.3.
+.#..#
+.#.11
+#..#.
+حال می خوام کمترین فاصله ۲و۱ را با یکدیگر به دست بیارم
+همچنین برای ۲و۳
+برای ۱و۳
+'''
 from collections import deque
-import heapq
 
-def minimum_roads_to_connect(n, m, grid):
-    # Helper function to find all components using BFS
-    def find_components():
-        components = []
-        visited = [[False] * m for _ in range(n)]
-
-        for i in range(n):
-            for j in range(m):
-                if grid[i][j] in "123" and not visited[i][j]:
-                    comp = []
-                    queue = deque([(i, j)])
-                    visited[i][j] = True
-
-                    while queue:
-                        x, y = queue.popleft()
-                        comp.append((x, y))
-
-                        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                            nx, ny = x + dx, y + dy
-                            if 0 <= nx < n and 0 <= ny < m and not visited[nx][ny] and grid[nx][ny] in "123":
-                                visited[nx][ny] = True
-                                queue.append((nx, ny))
-
-                    components.append(comp)
-        return components
-
-    # Calculate all edges (distances) between components using BFS from component borders
-    def build_edges(components):
-        edges = []
-        tmp = {}
-        for i, comp1 in enumerate(components):
-            for x, y in comp1:
-                visited = [[False] * m for _ in range(n)]
-                queue = deque([(x, y, 0)])  # (current_x, current_y, distance)
-                visited[x][y] = True
-
-                while queue:
-                    cx, cy, dist = queue.popleft()
-
-                    for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                        nx, ny = cx + dx, cy + dy
-                        if 0 <= nx < n and 0 <= ny < m and not visited[nx][ny]:
-                            visited[nx][ny] = True
-                            if grid[nx][ny] == '.':
-                                queue.append((nx, ny, dist + 1))
-                            elif grid[nx][ny] in "123":
-                                for j, comp2 in enumerate(components):
-                                    if j != i and (nx, ny) in comp2:
-                                        # edges.append((dist, i, j))
-                                        if (min(i,j), max(i,j)) in tmp:
-                                            tmp[(min(i,j), max(i,j))] = min(tmp[(min(i,j), max(i,j))], dist)
-                                        else:
-                                            tmp[(min(i,j), max(i,j))] = dist
-                                        break
-        return [(tmp[(i,j)], i, j) for i,j in tmp.keys()]
-
-    # Find all components
-    components = find_components()
-    if len(components) < 2:
-        return 0  # Already connected or no components
-
-    # Build all possible edges between components with their distances
-    edges = build_edges(components)
-
-    # Use Kruskal's algorithm to find the minimum spanning tree (MST)
-    edges.sort()
-    parent = list(range(len(components)))
-
-    def find(x):
-        if parent[x] != x:
-            parent[x] = find(parent[x])
-        return parent[x]
-
-    def union(x, y):
-        root_x = find(x)
-        root_y = find(y)
-        if root_x != root_y:
-            parent[root_y] = root_x
-
-    total_cost = 0
-    used_edges = 0
-    
-    for dist, i, j in edges:
-        if find(i) != find(j):
-            union(i, j)
-            total_cost += dist
-            used_edges += 1
-            if used_edges == len(components) - 1:
-                break
-
-    # Check if all components are connected
-    connected_components = len(set(find(i) for i in range(len(components))))
-    if connected_components > 1:
-        return -1
-
-    return total_cost
-
-# Input reading
+# ورودی خوانی
 n, m = map(int, input().split())
 grid = [input().strip() for _ in range(n)]
 
-# Solve and output the result
-print(minimum_roads_to_connect(n, m, grid))
-# print(-1)
+# فاصله برای هر نوع عدد (1، 2، 3)
+distances = [[[float('inf')] * 3 for _ in range(m)] for _ in range(n)]
+
+# جستجوی BFS برای هر نوع خانه
+for target in range(1, 4):  # برای خانه‌های '1'، '2'، '3'
+    queue = deque()
+    visited = [[False] * m for _ in range(n)]
+    
+    # اضافه کردن همه خانه‌های هدف به صف
+    for i in range(n):
+        for j in range(m):
+            if grid[i][j] == str(target):
+                queue.append((i, j, 0))
+                visited[i][j] = True
+    
+    # BFS
+    while queue:
+        x, y, d = queue.popleft()
+        distances[x][y][target - 1] = d
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < n and 0 <= ny < m and not visited[nx][ny] and grid[nx][ny] != '#':
+                visited[nx][ny] = True
+                queue.append((nx, ny, d + 1))
+    
+def min_distance_between_types(type1, type2):
+    queue = deque()
+    visited = [[False] * m for _ in range(n)]
+    
+    # اضافه کردن تمام خانه‌های type1 به صف
+    for i in range(n):
+        for j in range(m):
+            if grid[i][j] == str(type1):
+                queue.append((i, j, 0))
+                visited[i][j] = True
+    
+    # BFS برای یافتن نزدیک‌ترین خانه type2
+    while queue:
+        x, y, d = queue.popleft()
+        if grid[x][y] == str(type2):  # اگر به نوع دوم رسیدیم
+            return d
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < n and 0 <= ny < m and not visited[nx][ny] and grid[nx][ny] != '#':
+                visited[nx][ny] = True
+                queue.append((nx, ny, d + 1))
+    return float('inf')  # اگر هیچ مسیری پیدا نشد
+
+# محاسبه کمترین فاصله‌ها
+distance_1_2 = min_distance_between_types(1, 2) - 1
+distance_2_3 = min_distance_between_types(2, 3) - 1
+distance_1_3 = min_distance_between_types(1, 3) - 1
+
+sum_of_two_min = sum(sorted([distance_1_2, distance_2_3, distance_1_3])[:2])
+
+# چاپ خروجی
+for i in range(n):
+    for j in range(m):
+        if grid[i][j] == '.':
+            sum_of_two_min = min(sum_of_two_min, sum(distances[i][j]) - 2)
+print(sum_of_two_min)
+
+# for i in range(n):
+#     for j in range(m):
+#         if grid[i][j] == '.':
+#             print(distances[i][j], end='|')
+#         else:
+#             print('    ' + grid[i][j] + '    ', end='|')
+#     print()
