@@ -1,9 +1,7 @@
 class Node:
-    def __init__(self, name):
-        self.name = name
-        self.is_source = False
-        self.is_sink = False
+    def __init__(self):
         self.edge = []
+        self.is_full = True
 
 class edge:
     def __init__(self, to, capacity):
@@ -19,59 +17,67 @@ def read_input():
     return n, grid
 
 def create_nodes(n, grid):
-    source = Node('source')
-    sink = Node('sink')
-    source.is_source = True
-    sink.is_sink = True
+    source = Node()
+    sink = Node()
     
-    # nodes = [[Node()] * n] * n
-    # nodes = [[Node((i,j)) for i in range(n)] for j in range(n)]
     nodes = []
     for i in range(n):
         for j in range(n):
-            nodes.append(Node((i,j)))
-    
-    for i in range(n):
-        for j in range(n):
+            new_node = Node()
             is_left = (i + j) % 2 == 0
             i_grid = 2 * (i+1) - 1
             j_grid = 2 * (j+1) - 1
             
+            # محاسبه ظرفیت راس
             count = 0
-            count_out_of_range = 0
             for di, dj in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                ni, nj = i + di, j + dj
                 if grid[i_grid + di][j_grid + dj] == '|' or grid[i_grid + di][j_grid + dj] == '-':
                     continue
                 count += 1
-                if 0 <= ni < n and 0 <= nj < n:
-                    if is_left:
-                        # new_edge = edge(nodes[ni][nj], 1)
-                        new_edge = edge(nodes[ni*n + nj], 1)
-                        # nodes[i][j].edge.append(new_edge)
-                        nodes[i*n + j].edge.append(new_edge)
+            
+            # اگر صفر نبود به s یا t یال می‌زنیم
+            if count - 1 > 0:
+                new_node.is_full = False
+                if is_left:
+                    new_edge = edge(new_node, count - 1)
+                    source.edge.append(new_edge)
                 else:
+                    new_edge = edge(sink, count - 1)
+                    new_node.edge.append(new_edge)
+            
+            nodes.append(new_node)
+    
+    for i in range(n):
+        for j in range(n):
+            index = i*n + j
+            # اگر قابل استفاده بود ادامه می دیم
+            if nodes[index].is_full:
+                continue
+            is_left = (i + j) % 2 == 0
+            i_grid = 2 * (i+1) - 1
+            j_grid = 2 * (j+1) - 1
+            
+            count_out_of_range = 0
+            for di, dj in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                if grid[i_grid + di][j_grid + dj] == '|' or grid[i_grid + di][j_grid + dj] == '-':
+                    continue
+                ni, nj = i + di, j + dj
+                # زدن یال به گره‌های مجاور
+                if 0 <= ni < n and 0 <= nj < n:
+                    if is_left and not nodes[ni*n + nj].is_full:
+                        new_edge = edge(nodes[ni*n + nj], 1)
+                        nodes[index].edge.append(new_edge)
+                else:
+                    # اگر خارج از محدوده بود به s یا t یال می‌زنیم
                     count_out_of_range += 1
 
             if count_out_of_range > 0:
                 if is_left:
                     new_edge = edge(sink, count_out_of_range)
-                    # nodes[i][j].edge.append(new_edge)
-                    nodes[i*n + j].edge.append(new_edge)
+                    nodes[index].edge.append(new_edge)
                 else:
-                    # new_edge = edge(nodes[i][j], count_out_of_range)
-                    new_edge = edge(nodes[i*n + j], count_out_of_range)
+                    new_edge = edge(nodes[index], count_out_of_range)
                     source.edge.append(new_edge)
-        
-            if count - 1 > 0:
-                if is_left:
-                    # new_edge = edge(nodes[i][j], count - 1)
-                    new_edge = edge(nodes[i*n + j], count - 1)
-                    source.edge.append(new_edge)
-                else:
-                    new_edge = edge(sink, count - 1)
-                    # nodes[i][j].edge.append(new_edge)
-                    nodes[i*n + j].edge.append(new_edge)
                 
     return nodes, source, sink
 
@@ -95,7 +101,7 @@ def solve(nodes, source, sink):
                 # ظرفیت باقیمانده = ظرفیت - جریان
                 if e.capacity - e.flow > 0 and parent[e.to] is None and e.to != source:
                     parent[e.to] = (u, e)  # ذخیرهٔ (گره مبدا, یال)
-                    if e.to.is_sink:
+                    if e.to == sink:
                         # اگر به گره مقصد رسیدیم، مسیر را بازمی‌گردانیم
                         return parent
                     queue.append(e.to)
@@ -152,30 +158,6 @@ def solve(nodes, source, sink):
 
         return max_flow
 
-    def bfs_from_source(source):
-        """
-        از طریق گره مبدأ، سایر گره‌های قابل دسترسی را پیدا کرده و لیستی
-        از این گره‌ها را برمی‌گرداند.
-        """
-        visited = set()
-        queue = deque([source])
-        visited.add(source)
-
-        while queue:
-            current = queue.popleft()
-            # بررسی تمام یال‌هایی که از گره فعلی خارج می‌شوند
-            for e in current.edge:
-                # بسته به نیاز، می‌توانید شرط‌هایی برای ظرفیت، جریان و غیره در اینجا اضافه کنید
-                if e.to not in visited:
-                    visited.add(e.to)
-                    queue.append(e.to)
-
-        return visited
-
-
-    # Example usage
-    # Create nodes and add edges
-    # Call edmonds_karp(source_node, sink_node)
     nodes.append(source)
     nodes.append(sink)
     return edmond_karp(nodes, source, sink)
