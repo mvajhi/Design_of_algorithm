@@ -67,69 +67,107 @@ def create_nodes(n, grid):
 
 def solve(source, sink):
     from collections import deque
+    def bfs_find_path(nodes, source, sink):
+        """
+        یک تابع BFS برای پیدا کردن مسیری با ظرفیت باقیمانده مثبت از مبدأ تا مقصد،
+        مسیر را در قالب یک دیکشنری parent ذخیره می‌کند که با دنبال‌کردن آن می‌توان
+        مسیر یال‌ها را بازسازی کرد.
+        """
+        from collections import deque
+        queue = deque()
+        queue.append(source)
 
-    def bfs(source, sink):
-        parent = {}
+        # این دیکشنری در نهایت مشخص می‌کند که گره فعلی از طریق کدام گره آمده و از کدام یال استفاده شده
+        parent = {node: None for node in nodes}
+
+        while queue:
+            u = queue.popleft()
+            for e in u.edge:
+                # ظرفیت باقیمانده = ظرفیت - جریان
+                if e.capacity - e.flow > 0 and parent[e.to] is None and e.to != source:
+                    parent[e.to] = (u, e)  # ذخیرهٔ (گره مبدا, یال)
+                    if e.to.is_sink:
+                        # اگر به گره مقصد رسیدیم، مسیر را بازمی‌گردانیم
+                        return parent
+                    queue.append(e.to)
+        return parent
+
+    def edmond_karp(nodes, source, sink):
+        """
+        الگوریتم ادموند کارپ برای محاسبه جریان ماکزیمم از مبدأ (گره‌ای که is_source=True دارد)
+        تا مقصد (گره‌ای که is_sink=True دارد). در پایان، مقدار جریان ماکزیمم را برمی‌گرداند.
+        """
+        max_flow = 0
+
+        # تا زمانی که مسیری با ظرفیت باقیمانده پیدا می‌شود، جریان را افزایش می‌دهیم
+        while True:
+            parent_map = bfs_find_path(nodes, source, sink)
+
+            # اگر به گره مقصد نرسیدیم، یعنی مسیر اشباع شده و دیگر مسیر افزایش‌دهنده وجود ندارد
+            if parent_map[sink] is None:
+                break
+            
+            # پیدا کردن کمترین ظرفیت باقیمانده در مسیر
+            flow = float('inf')
+            current_node = sink
+
+            # با دنبال کردن parent_map از مقصد تا مبدأ، کمترین ظرفیت باقیمانده را پیدا می‌کنیم
+            while current_node != source:
+                u, e = parent_map[current_node]
+                remaining_capacity = e.capacity - e.flow
+                flow = min(flow, remaining_capacity)
+                current_node = u
+
+            # باز هم از مقصد تا مبدأ حرکت می‌کنیم و جریان را به اندازه flow به هر یال اضافه می‌کنیم
+            current_node = sink
+            while current_node != source:
+                u, e = parent_map[current_node]
+                e.flow += flow
+                # اگر لازم باشد یال برعکس (برای جریان بازگشتی) را نیز به لیست یال‌های u اضافه می‌کنیم
+                # یا اگر وجود دارد، مقدار جریان آن را کم می‌کنیم
+                # در این ساختار لازم است بررسی کنیم آیا یال برعکس از e.to به u وجود دارد یا خیر
+                # و در صورت نبودن، آن را ایجاد کنیم
+                reverse_edge = None
+                for rev_e in e.to.edge:
+                    if rev_e.to == u:
+                        reverse_edge = rev_e
+                        break
+                if not reverse_edge:
+                    reverse_edge = edge(u, 0)  # یال برعکس با ظرفیت 0
+                    e.to.edge.append(reverse_edge)
+                reverse_edge.flow -= flow
+
+                current_node = u
+
+            max_flow += flow
+
+        return max_flow
+
+    def bfs_from_source(source):
+        """
+        از طریق گره مبدأ، سایر گره‌های قابل دسترسی را پیدا کرده و لیستی
+        از این گره‌ها را برمی‌گرداند.
+        """
         visited = set()
         queue = deque([source])
         visited.add(source)
 
         while queue:
             current = queue.popleft()
+            # بررسی تمام یال‌هایی که از گره فعلی خارج می‌شوند
+            for e in current.edge:
+                # بسته به نیاز، می‌توانید شرط‌هایی برای ظرفیت، جریان و غیره در اینجا اضافه کنید
+                if e.to not in visited:
+                    visited.add(e.to)
+                    queue.append(e.to)
 
-            if current == sink:
-                path = []
-                while current in parent:
-                    path.append(current)
-                    current = parent[current]
-                path.append(source)
-                return path[::-1]
+        return visited
 
-            for edge in current.edge:
-                if edge.to not in visited and edge.capacity > edge.flow:
-                    visited.add(edge.to)
-                    parent[edge.to] = current
-                    queue.append(edge.to)
-
-        return None
-
-    def edmonds_karp(source, sink):
-        max_flow = 0
-
-        while True:
-            path = bfs(source, sink)
-            if not path:
-                break
-
-            path_flow = float('inf')
-            for i in range(len(path) - 1):
-                current = path[i]
-                next_node = path[i + 1]
-                for edge in current.edge:
-                    if edge.to == next_node:
-                        path_flow = min(path_flow, edge.capacity - edge.flow)
-
-            for i in range(len(path) - 1):
-                current = path[i]
-                next_node = path[i + 1]
-                for edge in current.edge:
-                    if edge.to == next_node:
-                        edge.flow += path_flow
-                        break
-
-                for edge in next_node.edge:
-                    if edge.to == current:
-                        edge.flow -= path_flow
-                        break
-
-            max_flow += path_flow
-
-        return max_flow
 
     # Example usage
     # Create nodes and add edges
     # Call edmonds_karp(source_node, sink_node)
-    return edmonds_karp(source, sink)
+    return edmond_karp(bfs_from_source(source), source, sink)
 
 
 
