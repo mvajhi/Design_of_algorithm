@@ -8,6 +8,21 @@ class edge:
         self.to = to
         self.capacity = capacity
         self.flow = 0
+        self.rev = None  
+
+def add_edge(u, v, capacity):
+    """
+    این تابع بین دو گره u و v دو یال (اصلی و معکوس) اضافه می‌کند.
+    """
+    forward_edge = edge(v, capacity)
+    backward_edge = edge(u, 0)  # یال معکوس با ظرفیت صفر
+    # اتصال مراجع یال‌ها برای دسترسی به یکدیگر
+    forward_edge.rev = backward_edge
+    backward_edge.rev = forward_edge
+    # قرار دادن یال‌ها در adjacency list
+    u.edge.append(forward_edge)
+    v.edge.append(backward_edge)
+
 
 def read_input():
     n = int(input().strip())
@@ -39,11 +54,13 @@ def create_nodes(n, grid):
             if count - 1 > 0:
                 new_node.is_full = False
                 if is_left:
-                    new_edge = edge(new_node, count - 1)
-                    source.edge.append(new_edge)
+                    # new_edge = edge(new_node, count - 1)
+                    # source.edge.append(new_edge)
+                    add_edge(source, new_node, count - 1)
                 else:
-                    new_edge = edge(sink, count - 1)
-                    new_node.edge.append(new_edge)
+                    # new_edge = edge(sink, count - 1)
+                    # new_node.edge.append(new_edge)
+                    add_edge(new_node, sink, count - 1)
             
             nodes.append(new_node)
     
@@ -65,102 +82,103 @@ def create_nodes(n, grid):
                 # زدن یال به گره‌های مجاور
                 if 0 <= ni < n and 0 <= nj < n:
                     if is_left and not nodes[ni*n + nj].is_full:
-                        new_edge = edge(nodes[ni*n + nj], 1)
-                        nodes[index].edge.append(new_edge)
+                        # new_edge = edge(nodes[ni*n + nj], 1)
+                        # nodes[index].edge.append(new_edge)
+                        add_edge(nodes[index], nodes[ni*n + nj], 1)
                 else:
                     # اگر خارج از محدوده بود به s یا t یال می‌زنیم
                     count_out_of_range += 1
 
             if count_out_of_range > 0:
                 if is_left:
-                    new_edge = edge(sink, count_out_of_range)
-                    nodes[index].edge.append(new_edge)
+                    # new_edge = edge(sink, count_out_of_range)
+                    # nodes[index].edge.append(new_edge)
+                    add_edge(nodes[index], sink, count_out_of_range)
                 else:
-                    new_edge = edge(nodes[index], count_out_of_range)
-                    source.edge.append(new_edge)
+                    # new_edge = edge(nodes[index], count_out_of_range)
+                    # source.edge.append(new_edge)
+                    add_edge(source, nodes[index], count_out_of_range)
                 
     return nodes, source, sink
 
 def solve(nodes, source, sink):
     from collections import deque
-    def bfs_find_path(nodes, source, sink):
+    def bfs_build_level_graph(nodes, source, sink, level):
         """
-        یک تابع BFS برای پیدا کردن مسیری با ظرفیت باقیمانده مثبت از مبدأ تا مقصد،
-        مسیر را در قالب یک دیکشنری parent ذخیره می‌کند که با دنبال‌کردن آن می‌توان
-        مسیر یال‌ها را بازسازی کرد.
+        در این BFS، گراف لایه‌ای (Level Graph) را می‌سازیم.
+        در آرایه/دیکشنری level، برای هر گره لایه‌اش (عمق در گراف لایه‌ای) ذخیره می‌شود.
+        اگر نتوانیم به گره مقصد برسیم، False برمی‌گرداند.
         """
+        for node in nodes:
+            level[node] = -1  # ابتدا تمام لایه‌ها را -1 قرار می‌دهیم.
         queue = deque()
         queue.append(source)
-
-        # این دیکشنری در نهایت مشخص می‌کند که گره فعلی از طریق کدام گره آمده و از کدام یال استفاده شده
-        parent = {node: None for node in nodes}
+        level[source] = 0
 
         while queue:
             u = queue.popleft()
             for e in u.edge:
-                # ظرفیت باقیمانده = ظرفیت - جریان
-                if e.capacity - e.flow > 0 and parent[e.to] is None and e.to != source:
-                    parent[e.to] = (u, e)  # ذخیرهٔ (گره مبدا, یال)
-                    if e.to == sink:
-                        # اگر به گره مقصد رسیدیم، مسیر را بازمی‌گردانیم
-                        return parent
+                # اگر هنوز بازدید نشده و ظرفیت باقیمانده مثبت دارد، برو به لایه بعد
+                if level[e.to] < 0 and e.flow < e.capacity:
+                    level[e.to] = level[u] + 1
                     queue.append(e.to)
-        return parent
 
-    def edmond_karp(nodes, source, sink):
+        return level[sink] != -1
+
+    def send_flow_dfs(u, flow, sink, level, start):
         """
-        الگوریتم ادموند کارپ برای محاسبه جریان ماکزیمم از مبدأ (گره‌ای که is_source=True دارد)
-        تا مقصد (گره‌ای که is_sink=True دارد). در پایان، مقدار جریان ماکزیمم را برمی‌گرداند.
+        در این DFS، داخل گراف لایه‌ای تلاش می‌کنیم جریان را تا حد امکان ارسال کنیم.
+        از 'start' برای جلوگیری از چرخیدن روی یال‌هایی که قبلاً بررسی شده‌اند استفاده می‌کنیم.
         """
+        if u == sink:
+            return flow
+
+        while start[u] < len(u.edge):
+            e = u.edge[start[u]]
+            if level[e.to] == level[u] + 1 and e.flow < e.capacity:
+                # ظرفیت باقیمانده را حساب می‌کنیم
+                current_flow = e.capacity - e.flow
+                min_flow = min(flow, current_flow)
+
+                # تلاش برای ارسال جریان
+                flow_sent = send_flow_dfs(e.to, min_flow, sink, level, start)
+                if flow_sent > 0:
+                    # به یال اصلی اضافه می‌کنیم
+                    e.flow += flow_sent
+                    # از یال معکوس کم می‌کنیم
+                    e.rev.flow -= flow_sent
+                    return flow_sent
+            start[u] += 1
+
+        return 0
+
+    def dinic_max_flow(nodes, source, sink):
+        """
+        محاسبه جریان ماکزیمم با استفاده از الگوریتم دینیچ (Dinic).
+        فرض بر این است که تنها یک گره به عنوان مبدأ (is_source=True)
+        و تنها یک گره به عنوان مقصد (is_sink=True) داریم.
+        """
+
         max_flow = 0
+        level = {}
 
-        # تا زمانی که مسیری با ظرفیت باقیمانده پیدا می‌شود، جریان را افزایش می‌دهیم
-        while True:
-            parent_map = bfs_find_path(nodes, source, sink)
+        # تا زمانی که می‌توانیم به گره مقصد برسیم، سطح‌بندی مجدد می‌کنیم و سپس با DFS جریان ارسال می‌کنیم
+        while bfs_build_level_graph(nodes, source, sink, level):
+            # start دیکشنری‌ای است برای آنکه مکانِ فعلی در لیست یال‌ها را به‌خاطر بسپاریم
+            # تا هر بار که یک یال بلااستفاده شد، به یال بعدی برویم.
+            start = {node: 0 for node in nodes}
 
-            # اگر به گره مقصد نرسیدیم، یعنی مسیر اشباع شده و دیگر مسیر افزایش‌دهنده وجود ندارد
-            if parent_map[sink] is None:
-                break
-            
-            # پیدا کردن کمترین ظرفیت باقیمانده در مسیر
-            flow = float('inf')
-            current_node = sink
-
-            # با دنبال کردن parent_map از مقصد تا مبدأ، کمترین ظرفیت باقیمانده را پیدا می‌کنیم
-            while current_node != source:
-                u, e = parent_map[current_node]
-                remaining_capacity = e.capacity - e.flow
-                flow = min(flow, remaining_capacity)
-                current_node = u
-
-            # باز هم از مقصد تا مبدأ حرکت می‌کنیم و جریان را به اندازه flow به هر یال اضافه می‌کنیم
-            current_node = sink
-            while current_node != source:
-                u, e = parent_map[current_node]
-                e.flow += flow
-                # اگر لازم باشد یال برعکس (برای جریان بازگشتی) را نیز به لیست یال‌های u اضافه می‌کنیم
-                # یا اگر وجود دارد، مقدار جریان آن را کم می‌کنیم
-                # در این ساختار لازم است بررسی کنیم آیا یال برعکس از e.to به u وجود دارد یا خیر
-                # و در صورت نبودن، آن را ایجاد کنیم
-                reverse_edge = None
-                for rev_e in e.to.edge:
-                    if rev_e.to == u:
-                        reverse_edge = rev_e
-                        break
-                if not reverse_edge:
-                    reverse_edge = edge(u, 0)  # یال برعکس با ظرفیت 0
-                    e.to.edge.append(reverse_edge)
-                reverse_edge.flow -= flow
-
-                current_node = u
-
-            max_flow += flow
+            while True:
+                flow_sent = send_flow_dfs(source, float('inf'), sink, level, start)
+                if flow_sent <= 0:
+                    break
+                max_flow += flow_sent
 
         return max_flow
 
     nodes.append(source)
     nodes.append(sink)
-    return edmond_karp(nodes, source, sink)
+    return dinic_max_flow(nodes, source, sink)
 
 
 
