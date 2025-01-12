@@ -25,7 +25,11 @@ def create_nodes(n, grid):
     sink.is_sink = True
     
     # nodes = [[Node()] * n] * n
-    nodes = [[Node((i,j)) for i in range(n)] for j in range(n)]
+    # nodes = [[Node((i,j)) for i in range(n)] for j in range(n)]
+    nodes = []
+    for i in range(n):
+        for j in range(n):
+            nodes.append(Node((i,j)))
     
     for i in range(n):
         for j in range(n):
@@ -42,30 +46,36 @@ def create_nodes(n, grid):
                 count += 1
                 if 0 <= ni < n and 0 <= nj < n:
                     if is_left:
-                        new_edge = edge(nodes[ni][nj], 1)
-                        nodes[i][j].edge.append(new_edge)
+                        # new_edge = edge(nodes[ni][nj], 1)
+                        new_edge = edge(nodes[ni*n + nj], 1)
+                        # nodes[i][j].edge.append(new_edge)
+                        nodes[i*n + j].edge.append(new_edge)
                 else:
                     count_out_of_range += 1
 
             if count_out_of_range > 0:
                 if is_left:
                     new_edge = edge(sink, count_out_of_range)
-                    nodes[i][j].edge.append(new_edge)
+                    # nodes[i][j].edge.append(new_edge)
+                    nodes[i*n + j].edge.append(new_edge)
                 else:
-                    new_edge = edge(nodes[i][j], count_out_of_range)
+                    # new_edge = edge(nodes[i][j], count_out_of_range)
+                    new_edge = edge(nodes[i*n + j], count_out_of_range)
                     source.edge.append(new_edge)
         
             if count - 1 > 0:
                 if is_left:
-                    new_edge = edge(nodes[i][j], count - 1)
+                    # new_edge = edge(nodes[i][j], count - 1)
+                    new_edge = edge(nodes[i*n + j], count - 1)
                     source.edge.append(new_edge)
                 else:
                     new_edge = edge(sink, count - 1)
-                    nodes[i][j].edge.append(new_edge)
+                    # nodes[i][j].edge.append(new_edge)
+                    nodes[i*n + j].edge.append(new_edge)
                 
-    return source, sink
+    return nodes, source, sink
 
-def solve(source, sink):
+def solve(nodes, source, sink):
     from collections import deque
     def bfs_find_path(nodes, source, sink):
         """
@@ -73,7 +83,6 @@ def solve(source, sink):
         مسیر را در قالب یک دیکشنری parent ذخیره می‌کند که با دنبال‌کردن آن می‌توان
         مسیر یال‌ها را بازسازی کرد.
         """
-        from collections import deque
         queue = deque()
         queue.append(source)
 
@@ -167,10 +176,12 @@ def solve(source, sink):
     # Example usage
     # Create nodes and add edges
     # Call edmonds_karp(source_node, sink_node)
-    return edmond_karp(bfs_from_source(source), source, sink)
+    nodes.append(source)
+    nodes.append(sink)
+    return edmond_karp(nodes, source, sink)
 
 
 
 n, grid = read_input()
-source, sink = create_nodes(n-1, grid)
-print(solve(source, sink))
+nodes, source, sink = create_nodes(n-1, grid)
+print(solve(nodes, source, sink))
