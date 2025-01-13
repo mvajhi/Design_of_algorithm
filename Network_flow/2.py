@@ -1,94 +1,85 @@
+class Graph:
+    def __init__(self, V, E):
+        self.V = V
+        self.E = E
+
 class Node:
     def __init__(self, name):
         self.name = name
-        self.neighbours = []
-        self.visited = False
-        self.is_start = False
-        self.is_sink = False
+        self.income_edges = []
+        self.outcome_edges = []
+
+n,m = map(int, input().split())
+nodes = [Node(i) for i in range(n)]
+edges = []
+c = {}
+f = {}
+for i in range(m):
+    a,b = map(int, input().split())
+    a,b = nodes[a - 1], nodes[b - 1]
+    edges.append((a,b))
+    c[(a,b)] = 1
+    f[(a,b)] = 0
+    f[(b,a)] = 0
+    a.outcome_edges.append((a,b))
+    b.income_edges.append((a,b))
+
+G = Graph(nodes, edges)
+flow = {}
+parent = {}
+
+def Ford_Fulkerson(G, s, t):
+    global flow, f, parent
+    while True :
+        for u in G.V:
+            flow[u] = None
         
-class Edge:
-    def __init__(self, start, end):
-        self.start = start
-        self.end = end
-        self.capacity = 1
-        self.flow = 0
-        self.visited = False
-
-def max_flow(nodes, start):
-    # Find a path from start to sink
-    def find_path(node, path):
-        if node.is_sink:
-            return path
-        for neighbour in node.neighbours:
-            if neighbour.flow < neighbour.capacity and not neighbour.visited:
-                neighbour.visited = True
-                result = find_path(neighbour.end, path + [neighbour])
-                if result:
-                    return result
-        return None
+        DFS(s, float('inf'))
+        
+        if flow[t] == None:
+            return f
+        
+        v = t
+        x = flow[t]
+        while v != s:
+            u = parent[v]
+            f[(u,v)] += x
+            f[(v,u)] -= x
+            v = u
     
-    # Increase the flow along the path
-    def increase_flow(path):
-        min_capacity = min(edge.capacity - edge.flow for edge in path)
-        for edge in path:
-            edge.flow += min_capacity
-            edge.visited = False
+def DFS(u, x):
+    global flow, f, parent, c
+    flow[u] = x
+    for (_, v) in u.outcome_edges:
+        if flow[v] == None and c[(u,v)] - f[(u,v)] > 0:
+            parent[v] = u
+            DFS(v, min(x, c[(u,v)] - f[(u,v)]))
     
-    while True:
-        path = find_path(start, [])
-        if path is None:
-            break
-        increase_flow(path)
-    
-    return sum(edge.flow for edge in start.neighbours)
+    for (v, _) in u.income_edges:
+        if flow[v] == None and f[(v,u)] > 0:
+            parent[v] = u
+            DFS(v, min(x, f[(v,u)]))
 
-# Read the input
-n, m = map(int, input().split())
-nodes = {}
-for i in range(n):
-    nodes[i] = Node(i)
+s = nodes[0]
+t = nodes[n-1]            
+f = Ford_Fulkerson(G, s, t)
 
-nodes[0].is_start = True
-nodes[n-1].is_sink = True
+result = 0
+for e in nodes[0].outcome_edges:
+    result += f[e]
 
-for _ in range(m):
-    i, j = map(int, input().split())
-    i, j = i-1, j-1
-    new_edge = Edge(nodes[i], nodes[j])
-    nodes[i].neighbours.append(new_edge)
+print(result)
 
-# Find the maximum flow
-print(max_flow(nodes, nodes[0]))
+def get_path_with_cost(node):
+    global f, t
+    if node == t:
+        return [node]
+    for e in node.outcome_edges:
+        if f[e] > 0:
+            f[e] -= 1
+            return [node] + get_path_with_cost(e[1])
 
-# Find the path
-def find_path(nodes, start):
-    def find_path(node, path):
-        if node.is_sink:
-            return path
-        for neighbour in node.neighbours:
-            if neighbour.flow == 1 and not neighbour.visited:
-                neighbour.visited = True
-                result = find_path(neighbour.end, path + [neighbour])
-                if result:
-                    return result
-        return None
-
-    while True:
-        path = find_path(start, [])
-        if path is None:
-            break
-        if len(path) == 0 or not path[0].start.is_start or not path[-1].end.is_sink:
-            break
-        print(len(path)+1)
-        node_in_path = []
-        last_node = -1
-        for edge in path:
-            if edge.start.name != last_node:
-                node_in_path.append(edge.start)
-                last_node = edge.start.name
-            if edge.end.name != last_node:
-                node_in_path.append(edge.end)
-                last_node = edge.end.name
-        print(' '.join(str(node.name + 1) for node in node_in_path))
-
-find_path(nodes, nodes[0])
+for _ in range(result):
+    path = get_path_with_cost(s)
+    print(len(path))
+    print(' '.join(str(node.name + 1) for node in path))
