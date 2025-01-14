@@ -124,7 +124,7 @@ def solve():
         sum_row = 0
         new_row = input().split()
         for j, num in enumerate(new_row):
-            val = int(num.split('.')[1])
+            val = int(num.split('.')[0] + num.split('.')[1]) % (10**3)
             if val == 0:
                 continue
             inp[i][j] = val
