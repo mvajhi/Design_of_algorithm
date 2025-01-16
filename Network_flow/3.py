@@ -1,3 +1,30 @@
+'''
+از تابع حل نتورک فلو سوال ۱ استفاده کردم که جی پی تی داده بود
+
+link: https://github.com/copilot/c/1a4cb0a4-ecce-45b5-91b5-66d841053099
+backup link: https://drive.google.com/drive/folders/1rFMFBs0U46dVIMWdiY_cXRXKv4oPynD1?usp=sharing
+class Node:
+    def __init__(self, name):
+        self.name = name
+        self.is_source = False
+        self.is_sink = False
+        self.edge = []
+
+class edge:
+    def __init__(self, to, capacity):
+        self.to = to
+        self.capacity = capacity
+        self.flow = 0
+
+ساختمان داده بالا رو دارم می خوام 
+شبکه جریان رو حل کنم. به عنوان ورودی source رو می دم.
+با روش ادموند کارپ آن را حل کن و جریان ماکزیمم را برگردان
+
+می خواهم فقط گره source رو بدم از طریق اون می تونی به باقی راس ها بررسی توی edge لیستی از یال ها هستش که از آن گره هستند به سمت گره to 
+
+به جای ادموند کارپ از دینیچ استفاده کن
+'''
+
 class Node:
     def __init__(self, name):
         self.name = name
@@ -121,37 +148,52 @@ def solve():
         if bad_input:
             input()
             continue
+        sum_floor_row = 0
         sum_row = 0
         new_row = input().split()
         for j, num in enumerate(new_row):
-            val = int(num.split('.')[0] + num.split('.')[1]) % (10**3)
+            val = 0
+            if num.split('.')[0][0] == '-':
+                val = -int(num.split('.')[1])
+            else:
+                val = int(num.split('.')[1])
             if val == 0:
                 continue
             inp[i][j] = val
             sum_row += val
-        
+            if val > 0:
+                sum_floor_row += 0
+            elif val < 0:
+                sum_floor_row -= 1000
+
         if sum_row % (10 ** 3) != 0 and not bad_input:
             print("NO")
             bad_input = True
         
-        if sum_row != 0:
-            add_edge(source, nodes[i], sum_row // (10 ** 3))
-            sum_of_sum_row += sum_row // (10 ** 3)
+        diff_row = int((sum_row - sum_floor_row) / (10**3))
+        if diff_row != 0:
+            add_edge(source, nodes[i], diff_row)
+            sum_of_sum_row += diff_row
         
-    
     if bad_input:
         return
     
     for j in range(m):
         sum_col = 0
+        sum_floor_col = 0
         for i in range(n):
             sum_col += inp[i][j]
+            if inp[i][j] > 0:
+                sum_floor_col += 0
+            elif inp[i][j] < 0:
+                sum_floor_col -= 1000
         if sum_col % (10 ** 3) != 0:
             print("NO")
             return
-        if sum_col != 0:
-            add_edge(nodes[j+n], sink, sum_col // (10 ** 3))
-            sum_of_sum_col += sum_col // (10 ** 3)
+        diff_col = int((sum_col - sum_floor_col) / (10**3))
+        if diff_col != 0:
+            add_edge(nodes[j+n], sink, diff_col)
+            sum_of_sum_col += diff_col
             
         
     if sum_of_sum_row != sum_of_sum_col:
@@ -164,7 +206,7 @@ def solve():
         for j in range(m):
             e = None
             if inp[i][j] != 0:
-                e = add_edge(nodes[i], nodes[j+n], inp[i][j])
+                 e = add_edge(nodes[i], nodes[j+n], 1)
             else:
                 e = Edge(0, 0)
             tmp.append(e)
@@ -178,28 +220,12 @@ def solve():
     
     print("YES")
     
-    # for i in source.edge:
-    #     if i.capacity == 0:
-    #         continue
-    #     print(f"source -> {i.to.name} : {i.flow} / {i.capacity}")
-    
-    # for i in sink.edge:
-    #     e = None
-    #     for j in i.to.edge:
-    #         if j.to == sink:
-    #             e = j
-    #             break
-    #     print(f"{i.to.name} -> sink : {e.flow} / {e.capacity}")
-    
     for i in range(n):
         for j in range(m):
             if result[i][j].capacity == 0:
                 print(0, end=" ")
             else:
-                if result[i][j].flow == 0:
-                    print(1, end=" ")
-                else:
-                    print(0, end=" ")
+                print(result[i][j].flow, end=" ")
         print()
     
 
